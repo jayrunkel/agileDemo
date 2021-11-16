@@ -16,6 +16,15 @@
 // - close date
 // - ticket owner (the person who created the ticket)
 //
+// ================================================================
+// Sprint 2 Description:
+// Allow multiple people to work on tickets. Tickets have an owner plus
+// multiple other users who can work on the ticket
+//
+// Implementation Notes:
+//  1. Need to add user table
+//  2. Need to convert description field into a table with time stamped comments
+//
 // ****************************************************************
 
 const { Client } = require('pg')
@@ -46,15 +55,60 @@ async function disconnectFromDatabase() {
 	await client.end()
 }
 
-async function createTicket(owner, subject, description) {
+// ================================================================
+// USER API
+// -- createUser
+// -- getUserId
+// ================================================================
+
+async function createUser(first, last, title) {
+	const values = [first, last, title]
+		
 	try {
-		const values = [owner, subject, description]
-		const res = await client.query('INSERT INTO ticket ("ticketOwner", subject, description) VALUES ($1, $2, $3) RETURNING *', values)
+		const res = await client.query('INSERT INTO users ("firstName", "lastName", title) VALUES ($1, $2, $3) RETURNING *', values)
 		console.log(res.rows[0])
-		return res.rows[0].ticketNumber
-	} catch (err) {
+		return res.rows[0].userId
+	} catch(err) {
 		console.log(err.stack)
 	}
+}
+
+async function getUserId(first, last) {
+	const values = [first, last]
+		
+	try {
+		const res = await client.query('SELECT * FROM users WHERE "firstName" = $1 AND "lastName" = $2', values)
+		console.log(res.rows[0])
+		return res.rows[0].userId
+	} catch(err) {
+		console.log(err.stack)
+	}
+}
+
+
+
+// ================================================================
+// TICKET API
+// -- createTicket
+// -- getTicket
+// -- changeTicketStatus
+// -- addTicketComment
+// ================================================================
+
+async function createTicket(owner, subject, description) {
+		try {
+			const values1 = [owner, subject]
+			await client.query('BEGIN')
+			const res1 = await client.query('INSERT INTO ticket ("ticketOwnerId", subject) VALUES ($1, $2) RETURNING "ticketNumber"', values1)
+			const ticketNumber = res1.rows[0].ticketNumber
+			const values2 = [ticketNumber, owner, description]
+			const res2 = await client.query('INSERT INTO comments ("ticketNumber", "userId", comment, "timeStamp") VALUES ($1, $2, $3, Cast(now() as timestamp without time zone)) RETURNING "commentNumber"', values2)
+			await client.query('COMMIT')
+			return ticketNumber
+		} catch (err) {
+			await client.query('ROLLBACK')
+			throw err
+		}
 }
 
 async function getTicket(ticketNumber) {
@@ -102,10 +156,16 @@ async function addTicketComment(ticketNumber, description) {
 
 async function test () {
 	let connection = await connectToDatabase()
-	let ticketNum = await createTicket("Jay", "Help?", "Doesn't work")
+	let newUserTom = await createUser("Tom", "Jones", "Boss")
+	console.log("Bosses user id: ", newUserTom)
+	let newUserTomId = await getUserId("Tom", "Jones")
+	console.log("Validating Boss is in the database. User Id: ", newUserTomId)
+
+	let ticketNum = await createTicket(newUserTomId, "Help?", "Doesn't work")
 	console.log("New Ticket Number: ", ticketNum)
 	console.log("New Ticket", await getTicket(ticketNum))
 
+	/*	
 	await changeTicketStatus(ticketNum, "closed")
 	console.log("Closed Ticket", await getTicket(ticketNum))
 
@@ -113,6 +173,7 @@ async function test () {
 
 	await addTicketComment(ticketNum, "Made a change to the ticket")
 	console.log("Updated Ticket Description:", await getTicket(ticketNum))
+	*/
 	
 	await disconnectFromDatabase()
 }
