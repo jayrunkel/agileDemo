@@ -55,14 +55,31 @@ async function getNextTicketNum() {
 	return ++lastTicketNum
 }
 
+async function createUniqueTicket(owner, subject, description, tryNumber, error) {
+	if (tryNumber > 5) {
+		throw error
+
+	} else {
+		let db = client.db(dbName)
+		let col = db.collection(collectionName)
+		try {
+			const newTicketNum = await getNextTicketNum()
+
+			const res = await col.insertOne({ticketNumber: newTicketNum, ticketOwner: owner, subject: subject, description: description})
+			console.log(res)
+			return newTicketNum
+		} catch (err) {
+			return await createUniqueTicket(owner, subject, description, ++tryNumber, err)
+		}
+	}
+	
+}
+
 async function createTicket(owner, subject, description) {
 	let db = client.db(dbName)
 	let col = db.collection(collectionName)
 	try {
-		const newTicketNum = await getNextTicketNum()
-
-		const res = await col.insertOne({ticketNumber: newTicketNum, ticketOwner: owner, subject: subject, description: description})
-		console.log(res)
+		const newTicketNum = await createUniqueTicket(owner, subject, description, 1, null)
 		return newTicketNum
 	} catch (err) {
 		console.log(err.stack)
@@ -133,7 +150,7 @@ async function test () {
 
 	await addTicketComment(ticketNum, "Made a change to the ticket")
 	console.log("Updated Ticket Description:", await getTicket(ticketNum))
-	
+
 	await disconnectFromDatabase()
 }
 
