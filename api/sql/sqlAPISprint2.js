@@ -27,6 +27,7 @@
 //
 // ****************************************************************
 
+//Postgres password is "passwword"
 const { Client } = require('pg')
 const client = new Client({
 	host: 'localhost',
@@ -57,8 +58,8 @@ async function disconnectFromDatabase() {
 
 // ================================================================
 // USER API
-// -- createUser
-// -- getUserId
+// ++ createUser
+// ++ getUserId
 // ================================================================
 
 async function createUser(first, last, title) {
@@ -89,18 +90,28 @@ async function getUserId(first, last) {
 
 // ================================================================
 // TICKET API
-// -- createTicket
-// -- getTicket
-// -- changeTicketStatus
-// -- addTicketComment
+// ++ createTicket
+// ++ getTicket
+// ++ changeTicketStatus
+// ++ addTicketComment
+// ++ getTicketComments
 // ================================================================
 
 async function createTicket(owner, subject, description) {
+
+	const executeTransaction = async function () {
 		try {
-			const values1 = [owner, subject]
 			await client.query('BEGIN')
+/*
+			const [res1, res2] = await Promise.all([
+				client.query('INSERT INTO ticket ("ticketOwnerId", subject) VALUES ($1, $2) RETURNING "ticketNumber"', values1),
+				client.query('INSERT INTO comments ("ticketNumber", "userId", comment, "timeStamp") VALUES ($1, $2, $3, Cast(now() as timestamp without time zone)) RETURNING "commentNumber"', values2)
+			])
+*/
+			const values1 = [owner, subject]
 			const res1 = await client.query('INSERT INTO ticket ("ticketOwnerId", subject) VALUES ($1, $2) RETURNING "ticketNumber"', values1)
 			const ticketNumber = res1.rows[0].ticketNumber
+
 			const values2 = [ticketNumber, owner, description]
 			const res2 = await client.query('INSERT INTO comments ("ticketNumber", "userId", comment, "timeStamp") VALUES ($1, $2, $3, Cast(now() as timestamp without time zone)) RETURNING "commentNumber"', values2)
 			await client.query('COMMIT')
@@ -109,6 +120,17 @@ async function createTicket(owner, subject, description) {
 			await client.query('ROLLBACK')
 			throw err
 		}
+	}
+
+	let ticketNumber = -1
+	
+	try {
+		ticketNumber = await executeTransaction()
+	} catch (e) {
+		console.log(e.stack)
+	}
+
+	return ticketNumber
 }
 
 async function getTicket(ticketNumber) {
@@ -143,16 +165,21 @@ async function changeTicketStatus(ticketNumber, newStatus) {
 	return operationStatus
 }
 
-async function addTicketComment(ticketNumber, description) {
+async function addTicketComment(ticketNumber, userId, description) {
 		try {
-			const values = [ticketNumber, description]
-			const res = await client.query('UPDATE ticket SET "description" = ("description" || \'\n\' || now() || \'\n\' || $2) WHERE "ticketNumber" = $1 RETURNING *', values)
-			console.log(res.rows[0])
+			const values = [ticketNumber, userId, description]
+			const res = await client.query('INSERT INTO comments ("ticketNumber", "userId", comment, "timeStamp") VALUES ($1, $2, $3, Cast(now() as timestamp without time zone)) RETURNING "commentNumber"', values)
+			return res.rows[0].commentNumber
 		} catch (err) {
 			console.log(err.stack)
 		}
-
 }
+
+async function getTicketComments(ticketNumber) {
+	const res = await client.query('SELECT * FROM comments WHERE "ticketNumber" = $1', [ticketNumber])
+	return res.rows
+}
+
 
 async function test () {
 	let connection = await connectToDatabase()
@@ -165,15 +192,19 @@ async function test () {
 	console.log("New Ticket Number: ", ticketNum)
 	console.log("New Ticket", await getTicket(ticketNum))
 
-	/*	
+		
 	await changeTicketStatus(ticketNum, "closed")
 	console.log("Closed Ticket", await getTicket(ticketNum))
 
 	await changeTicketStatus(ticketNum, "working on it")
 
-	await addTicketComment(ticketNum, "Made a change to the ticket")
+	let jayId = await getUserId("Jay", "Runkel")
+
+	await addTicketComment(ticketNum, jayId, "Made a change to the ticket")
 	console.log("Updated Ticket Description:", await getTicket(ticketNum))
-	*/
+	
+  let comments = await getTicketComments(ticketNum)
+	console.log("Ticket comments: ", comments)
 	
 	await disconnectFromDatabase()
 }
