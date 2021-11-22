@@ -132,6 +132,32 @@ ALTER TABLE public.ticket
 
 ## MongoDB Schema
 
+```
+{ _id: ObjectId("617858b34ba6cb297ebffd18"),
+  ticketNumber: 4,
+  ticketOwner: 1,
+  subject: 'Help?',
+  status: 'closed',
+  closeDate: 2021-10-26T19:36:19.689Z,
+  comments: 
+   [ { userId: 1,
+       date: 2021-11-19T21:33:53.957Z,
+       comment: 'Doesn\'t work' },
+     { userId: 2,
+       date: 2021-11-19T21:33:53.895Z,
+       comment: 'Made a change to the ticket' },
+     { userId: 4,
+       date: 2021-11-22T17:13:35.298Z,
+       comment: 'Made a change to the ticket' } ],
+  version: 2 }
+  
+{ _id: ObjectId("619bcfbf5acb47f30333d3b6"),
+  firstName: 'Tom',
+  lastName: 'Jones',
+  title: 'Boss',
+  userId: 4 }
+
+```
 
 
 The API is the same as Sprint 1 with the following changes/additions
