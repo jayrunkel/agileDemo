@@ -39,6 +39,7 @@ async function disconnectFromDatabase() {
 	await client.close()
 }
 
+//private
 async function getNextTicketNum() {
 	let db = client.db(dbName)
 	let col = db.collection(collectionName)
@@ -55,6 +56,7 @@ async function getNextTicketNum() {
 	return ++lastTicketNum
 }
 
+// private
 async function createUniqueTicket(owner, subject, description, tryNumber, error) {
 	if (tryNumber > 5) {
 		throw error
@@ -123,18 +125,18 @@ async function changeTicketStatus(ticketNumber, newStatus) {
 }
 
 async function addTicketComment(ticketNumber, description) {
+	let operationStatus = false
 	let db = client.db(dbName)
 	let col = db.collection(collectionName)
 		try {
 			const res = await col.updateOne({ticketNumber : ticketNumber},
 																			[{$set : {description : {$concat : ["$description", "\n", {$toString : "$$NOW"}, "\n", description]}}}])
-			
+			if (res != null) operationStatus = true
 			console.log(res)
 		} catch (err) {
-			
 			console.log(err.stack)
 		}
-
+	return operationStatus
 }
 
 async function test () {
@@ -150,6 +152,8 @@ async function test () {
 
 	await addTicketComment(ticketNum, "Made a change to the ticket")
 	console.log("Updated Ticket Description:", await getTicket(ticketNum))
+
+	await addTicketComment(9934393, jayId, "This ticket does not exist")
 
 	await disconnectFromDatabase()
 }

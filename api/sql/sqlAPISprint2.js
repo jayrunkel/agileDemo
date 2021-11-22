@@ -155,6 +155,7 @@ async function changeTicketStatus(ticketNumber, newStatus) {
 						await client.query('UPDATE ticket SET "status" = $2, "closeDate" = now() WHERE "ticketNumber" = $1 RETURNING *', values) :
 						await client.query('UPDATE ticket SET "status" = $2 WHERE "ticketNumber" = $1 RETURNING *', values) 
 			console.log(res.rows[0])
+			if (res.rows.length == 1) operationStatus = true
 		} catch (err) {
 			console.log(err.stack)
 		}
@@ -176,8 +177,8 @@ async function addTicketComment(ticketNumber, userId, description) {
 }
 
 async function getTicketComments(ticketNumber) {
-	const res = await client.query('SELECT * FROM comments WHERE "ticketNumber" = $1', [ticketNumber])
-	return res.rows
+	const res = await client.query('SELECT "userId", "timeStamp" as date, comment FROM comments WHERE "ticketNumber" = $1', [ticketNumber])
+	return  (res.rows.length > 0) ? res.rows : null
 }
 
 
@@ -202,9 +203,13 @@ async function test () {
 
 	await addTicketComment(ticketNum, jayId, "Made a change to the ticket")
 	console.log("Updated Ticket Description:", await getTicket(ticketNum))
+
+	await addTicketComment(9934393, jayId, "This ticket does not exist")
 	
   let comments = await getTicketComments(ticketNum)
 	console.log("Ticket comments: ", comments)
+
+	console.log("The comments for a non-existant ticket are ", await getTicketComments(9934393))
 	
 	await disconnectFromDatabase()
 }

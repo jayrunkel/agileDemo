@@ -79,6 +79,7 @@ async function changeTicketStatus(ticketNumber, newStatus) {
 						await client.query('UPDATE ticket SET "status" = $2, "closeDate" = now() WHERE "ticketNumber" = $1 RETURNING *', values) :
 						await client.query('UPDATE ticket SET "status" = $2 WHERE "ticketNumber" = $1 RETURNING *', values) 
 			console.log(res.rows[0])
+			if (res.rows.length == 1) operationStatus = true
 		} catch (err) {
 			console.log(err.stack)
 		}
@@ -113,6 +114,8 @@ async function test () {
 
 	await addTicketComment(ticketNum, "Made a change to the ticket")
 	console.log("Updated Ticket Description:", await getTicket(ticketNum))
+
+	await addTicketComment(9934393, jayId, "This ticket does not exist")
 	
 	await disconnectFromDatabase()
 }

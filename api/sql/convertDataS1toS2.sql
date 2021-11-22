@@ -1,3 +1,5 @@
+-- [TODO]: This is out of date. It is missing the foriegn key constraints. They can be added from "./api/sql/sprint2CreateTables.sql"
+
 -- Table: public.users
 
 -- DROP TABLE IF EXISTS public.users;

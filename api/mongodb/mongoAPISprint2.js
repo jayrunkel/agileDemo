@@ -260,7 +260,7 @@ async function changeTicketStatus(ticketNumber, newStatus) {
 		try {
 			let res = (newStatus == "closed") ?
 						await col.findOneAndUpdate({ticketNumber: ticketNumber},
-																			 {$set : {status : newStatus, closeDate : "$$NOW"}},
+																			 [{$set : {status : newStatus, closeDate : "$$NOW"}}],
 																			 {returnDocument : "after"}) :
 						await col.findOneAndUpdate({ticketNumber: ticketNumber},
 																			 {$set : {status : newStatus}},
@@ -290,21 +290,35 @@ async function addTicketComment(ticketNumber, userId, description) {
 																									 {$ifNull : ["$comments", []]},
 																									 [{
 																										 userId: userId,
-																										 date: '$$NOW',
+																										 date: "$$NOW",
 																										 comment: description
 																									 }]
 																								 ]
 																							 }
 																						 }}],
-																						 {returnDocument: "after"})
-			if (res.version === undefined || res.version == 1)
-				res = await convertTicketToCurrentVersion(res.ticketNumber, res.ticketOwner, res.version)
-			operationStatus = true
+																					 {returnDocument: "after"})
+			if (res != null) {
+				if (res.version === undefined || res.version == 1) 
+					res = await convertTicketToCurrentVersion(res.ticketNumber, res.ticketOwner, res.version)
+				operationStatus = true
+			}
 		} catch (err) {
 			console.log(err.stack)
 		}
 
 	return operationStatus
+}
+
+async function getTicketComments(ticketNumber) {
+	let db = client.db(dbName)
+	let col = db.collection(ticketCollectionName)
+	try {
+		let res = await col.findOne({ticketNumber : ticketNumber}, {_id : 0, ticketNumber: 1})
+		return res == null ? null : res.comments
+	}
+	catch (err) {
+		console.log(err.stack)
+	}
 }
 
 async function test () {
@@ -327,13 +341,19 @@ async function test () {
 	console.log("Value of non existing ticket: ", nonExistingTicket)
 
 	await changeTicketStatus(5, "closed")
-	console.log("Closed Ticket:", await getTicket(ticketNum))
+	console.log("Closed Ticket:", await getTicket(5))
 
 	await changeTicketStatus(ticketNum, "working on it")
 
 	await addTicketComment(4, newUserTom, "Made a change to the ticket")
 	console.log("Updated Ticket Description:", await getTicket(4))
 
+	await addTicketComment(9934393, newUserTom, "This ticket does not exist")
+
+	console.log("The ticket comments are: ", await getTicketComments(4))
+
+	console.log("The comments for a non-existant ticket are ", await getTicketComments(9934393))
+	
 	await disconnectFromDatabase()
 }
 
