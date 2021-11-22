@@ -132,6 +132,8 @@ ALTER TABLE public.ticket
 
 ## MongoDB Schema
 
+*Ticket Collection*
+
 ```
 { _id: ObjectId("617858b34ba6cb297ebffd18"),
   ticketNumber: 4,
@@ -150,7 +152,10 @@ ALTER TABLE public.ticket
        date: 2021-11-22T17:13:35.298Z,
        comment: 'Made a change to the ticket' } ],
   version: 2 }
-  
+```
+
+*Users Collection*
+```  
 { _id: ObjectId("619bcfbf5acb47f30333d3b6"),
   firstName: 'Tom',
   lastName: 'Jones',
