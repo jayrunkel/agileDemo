@@ -1,4 +1,4 @@
-import * as dbAPI from './mongoAPISprint2.js'
+import * as dbAPI from '../../api/mongodb/mongoAPISprint2.js'
 
 
 const uri = "mongodb+srv://admin:power_low12@realmcluster.aamtz.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
