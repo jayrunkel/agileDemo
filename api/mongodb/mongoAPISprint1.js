@@ -57,6 +57,7 @@ async function getNextTicketNum() {
 }
 
 // private
+// try using transaction?????
 async function createUniqueTicket(owner, subject, description, tryNumber, error) {
 	if (tryNumber > 5) {
 		throw error

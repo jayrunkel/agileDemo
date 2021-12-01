@@ -30,24 +30,24 @@
 import { MongoClient } from "mongodb";
 const validTicketStatuses = ["open", "closed", "inProgress"]
 
-const uri = "mongodb+srv://admin:power_low12@realmcluster.aamtz.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
 const dbName = "techSupport"
 const ticketCollectionName = "ticket"
 const usersCollectionName = "users"
 const currentVersion = 2
 
+
 // Create a new MongoClient
 //const client = new MongoClient(uri);
 var client = null
 
-async function connectToDatabase(uri) {
-  client = new MongoClient(uri)
-	await client.connect()
-	return client
+export async function connectToDatabase (uri) {
+    client = new MongoClient(uri);
+    await client.connect();
+    return client;
 }
 
-async function disconnectFromDatabase() {
-	await client.close()
+export async function disconnectFromDatabase () {
+    await client.close();
 }
 
 // ================================================================
@@ -92,29 +92,26 @@ async function createUniqueUser(first, last, title, tryNumber, error) {
 	
 }
 
-async function createUser(first, last, title) {
-	let db = client.db(dbName)
-	let col = db.collection(usersCollectionName)
-	
-	try {
-		const newUserId = await createUniqueUser(first, last, title, 1, null)
-		return newUserId
-	} catch (err) {
-		console.log(err.stack)
-	}
+export async function createUser (first, last, title) {
+    try {
+        const newUserId = await createUniqueUser(first, last, title, 1, null);
+        return newUserId;
+    } catch (err) {
+        console.log(err.stack);
+    }
 }
 
 
-async function getUserId(first, last) {
-	let db = client.db(dbName)
-	let col = db.collection(usersCollectionName)
-	
-	try {
-		const user = await col.findOne({firstName: first, lastName: last})
-		return user ? user.userId : null
-	} catch (err) {
-		console.log(err.stack)
-	}
+export  async function getUserId  (first, last) {
+    let db = client.db(dbName);
+    let col = db.collection(usersCollectionName);
+
+    try {
+        const user = await col.findOne({ firstName: first, lastName: last });
+        return user ? user.userId : null;
+    } catch (err) {
+        console.log(err.stack);
+    }
 }
 
 
@@ -176,15 +173,15 @@ async function createUniqueTicket(owner, subject, description, tryNumber, error)
 	
 }
 
-async function createTicket(owner, subject, description) {
-	let db = client.db(dbName)
-	let col = db.collection(ticketCollectionName)
-	try {
-		const newTicketNum = await createUniqueTicket(owner, subject, description, 1, null)
-		return newTicketNum
-	} catch (err) {
-		console.log(err.stack)
-	}
+export  async function createTicket (owner, subject, description)  {
+    let db = client.db(dbName);
+    let col = db.collection(ticketCollectionName);
+    try {
+        const newTicketNum = await createUniqueTicket(owner, subject, description, 1, null);
+        return newTicketNum;
+    } catch (err) {
+        console.log(err.stack);
+    }
 }
 
 
@@ -237,90 +234,92 @@ async function convertTicketToCurrentVersion(ticketNumber, userName, version, ad
 	}
 }
 
-async function getTicket(ticketNumber) {
-	let db = client.db(dbName)
-	let col = db.collection(ticketCollectionName)
-	try {
-		let res = await col.findOne({ticketNumber : ticketNumber})
-		res = (res == null || res.version == currentVersion) ? res : await convertTicketToCurrentVersion(ticketNumber, res.ticketOwner, res.version)
-		console.log(res)
-		return res
-	}
-	catch (err) {
-		console.log(err.stack)
-	}
+export  async function getTicket (ticketNumber)  {
+    let db = client.db(dbName);
+    let col = db.collection(ticketCollectionName);
+    try {
+        let res = await col.findOne({ ticketNumber: ticketNumber });
+        res = (res == null || res.version == currentVersion) ? res : await convertTicketToCurrentVersion(ticketNumber, res.ticketOwner, res.version);
+        console.log(res);
+        return res;
+    }
+    catch (err) {
+        console.log(err.stack);
+    }
 }
 
-async function changeTicketStatus(ticketNumber, newStatus) {
-	let operationStatus = false
-	let db = client.db(dbName)
-	let col = db.collection(ticketCollectionName)
-	
-	if (validTicketStatuses.includes(newStatus)) {
-		try {
-			let res = (newStatus == "closed") ?
-						await col.findOneAndUpdate({ticketNumber: ticketNumber},
-																			 [{$set : {status : newStatus, closeDate : "$$NOW"}}],
-																			 {returnDocument : "after"}) :
-						await col.findOneAndUpdate({ticketNumber: ticketNumber},
-																			 {$set : {status : newStatus}},
-																			 {returnDocument : "after"})
-			if (res.version === undefined || res.version == 1)
-				res = await convertTicketToCurrentVersion(res.ticketNumber, res.ticketOwner, res.version)
-			operationStatus = true
-		} catch (err) {
-			console.log(err.stack)
-		}
-	} else {
-		console.log("[ERROR] Attempting to change status of ticket: ", ticketNumber, " to and invalid ticket status: ", newStatus)
-	}
-	
-	return operationStatus
+export  async function changeTicketStatus (ticketNumber, newStatus)  {
+    let operationStatus = false;
+    let db = client.db(dbName);
+    let col = db.collection(ticketCollectionName);
+
+    if (validTicketStatuses.includes(newStatus)) {
+        try {
+            let res = (newStatus == "closed") ?
+                await col.findOneAndUpdate({ ticketNumber: ticketNumber },
+                    [{ $set: { status: newStatus, closeDate: "$$NOW" } }],
+                    { returnDocument: "after" }) :
+                await col.findOneAndUpdate({ ticketNumber: ticketNumber },
+                    { $set: { status: newStatus } },
+                    { returnDocument: "after" });
+            if (res.version === undefined || res.version == 1)
+                res = await convertTicketToCurrentVersion(res.ticketNumber, res.ticketOwner, res.version);
+            operationStatus = true;
+        } catch (err) {
+            console.log(err.stack);
+        }
+    } else {
+        console.log("[ERROR] Attempting to change status of ticket: ", ticketNumber, " to and invalid ticket status: ", newStatus);
+    }
+
+    return operationStatus;
 }
 
-async function addTicketComment(ticketNumber, userId, description) {
-	let operationStatus = false
-	let db = client.db(dbName)
-	let col = db.collection(ticketCollectionName)
-		try {
-			let res = await col.findOneAndUpdate({ticketNumber : ticketNumber},
-																						 [{$set : {
-																							 comments: {
-																								 $concatArrays : [
-																									 {$ifNull : ["$comments", []]},
-																									 [{
-																										 userId: userId,
-																										 date: "$$NOW",
-																										 comment: description
-																									 }]
-																								 ]
-																							 }
-																						 }}],
-																					 {returnDocument: "after"})
-			if (res != null) {
-				if (res.version === undefined || res.version == 1) 
-					res = await convertTicketToCurrentVersion(res.ticketNumber, res.ticketOwner, res.version)
-				operationStatus = true
-			}
-		} catch (err) {
-			console.log(err.stack)
-		}
+export  async function addTicketComment  (ticketNumber, userId, description)  {
+    let operationStatus = false;
+    let db = client.db(dbName);
+    let col = db.collection(ticketCollectionName);
+    try {
+        let res = await col.findOneAndUpdate({ ticketNumber: ticketNumber },
+            [{
+                $set: {
+                    comments: {
+                        $concatArrays: [
+                            { $ifNull: ["$comments", []] },
+                            [{
+                                userId: userId,
+                                date: "$$NOW",
+                                comment: description
+                            }]
+                        ]
+                    }
+                }
+            }],
+            { returnDocument: "after" });
+        if (res != null) {
+            if (res.version === undefined || res.version == 1)
+                res = await convertTicketToCurrentVersion(res.ticketNumber, res.ticketOwner, res.version);
+            operationStatus = true;
+        }
+    } catch (err) {
+        console.log(err.stack);
+    }
 
-	return operationStatus
+    return operationStatus;
 }
 
-async function getTicketComments(ticketNumber) {
-	let db = client.db(dbName)
-	let col = db.collection(ticketCollectionName)
-	try {
-		let res = await col.findOne({ticketNumber : ticketNumber}, {_id : 0, ticketNumber: 1})
-		return res == null ? null : res.comments
-	}
-	catch (err) {
-		console.log(err.stack)
-	}
+export  async function getTicketComments (ticketNumber)  {
+    let db = client.db(dbName);
+    let col = db.collection(ticketCollectionName);
+    try {
+        let res = await col.findOne({ ticketNumber: ticketNumber }, { _id: 0, ticketNumber: 1 });
+        return res == null ? null : res.comments;
+    }
+    catch (err) {
+        console.log(err.stack);
+    }
 }
-
+/*
 async function test () {
 	let connection = await connectToDatabase(uri)
 
@@ -370,3 +369,4 @@ async function miniTest() {
 }
 
 test()
+*/
