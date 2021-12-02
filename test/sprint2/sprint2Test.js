@@ -1,11 +1,34 @@
-import * as dbAPI from '../../api/mongodb/mongoAPISprint2.js'
+import * as mongoAPI from '../../api/mongodb/mongoAPISprint2.js'
+import * as postgresAPI from '../../api/sql/sqlAPISprint2.js'
 
+var dbAPI = null
+var dbConnSetup = null
+const mongoDBUri = "mongodb+srv://admin:power_low12@realmcluster.aamtz.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
+const postgresConnObj = {
+	host: 'localhost',
+	user: 'jayrunkel',
+	database: 'techSupport'
+}
 
-const uri = "mongodb+srv://admin:power_low12@realmcluster.aamtz.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
+const args = process.argv.slice(2)
 
+function setDBAPI() {
+	switch (args[0]) {
+	case "MongoDB":
+		dbAPI = mongoAPI
+		dbConnSetup = mongoDBUri
+		break
+	case "SQL" :
+		dbAPI = postgresAPI
+		dbConnSetup = postgresConnObj
+		break
+	default:
+		console.log("ERROR - Unknown database API")
+	}
+}
 
 async function test () {
-	let connection = await dbAPI.connectToDatabase(uri)
+	let connection = await dbAPI.connectToDatabase(dbConnSetup)
 
 	let newUserTom = await dbAPI.createUser("Tom", "Jones", "Boss")
 	console.log("Bosses user id: ", newUserTom)
@@ -23,10 +46,11 @@ async function test () {
 	await dbAPI.changeTicketStatus(5, "closed")
 	console.log("Closed Ticket:", await dbAPI.getTicket(5))
 
-	await dbAPI.addTicketComment(4, newUserTom, "Made a change to the ticket")
-	console.log("Updated Ticket Description:", await dbAPI.getTicket(4))
+	let result = await dbAPI.addTicketComment(4, newUserTom, "Made a change to the ticket")
+	console.log("Updated Ticket Description [Success was ", result, "]:", await dbAPI.getTicket(4))
 
-	await dbAPI.addTicketComment(9934393, newUserTom, "This ticket does not exist")
+	result = await dbAPI.addTicketComment(9934393, newUserTom, "This ticket does not exist")
+	console.log("Updated Ticket Description for Non Existing Ticket [Success was ", result, "]")
 
 	console.log("The ticket comments are: ", await dbAPI.getTicketComments(4))
 
@@ -35,4 +59,7 @@ async function test () {
 	await dbAPI.disconnectFromDatabase()
 }
 
-test()
+	(() => {
+		setDBAPI()
+		if (dbAPI != null) test()
+	})()

@@ -280,27 +280,27 @@ export  async function addTicketComment  (ticketNumber, userId, description)  {
     let db = client.db(dbName);
     let col = db.collection(ticketCollectionName);
     try {
-        let res = await col.findOneAndUpdate({ ticketNumber: ticketNumber },
-            [{
-                $set: {
-                    comments: {
-                        $concatArrays: [
-                            { $ifNull: ["$comments", []] },
-                            [{
-                                userId: userId,
-                                date: "$$NOW",
-                                comment: description
-                            }]
-                        ]
-                    }
-                }
-            }],
-            { returnDocument: "after" });
-        if (res != null) {
-            if (res.version === undefined || res.version == 1)
-                res = await convertTicketToCurrentVersion(res.ticketNumber, res.ticketOwner, res.version);
-            operationStatus = true;
-        }
+      let res = await col.findOneAndUpdate({ ticketNumber: ticketNumber },
+																					 [{
+																						 $set: {
+																							 comments: {
+																								 $concatArrays: [
+																									 { $ifNull: ["$comments", []] },
+																									 [{
+																										 userId: userId,
+																										 date: "$$NOW",
+																										 comment: description
+																									 }]
+																								 ]
+																							 }
+																						 }
+																					 }],
+																					 { returnDocument: "after" });
+      if (res.value != null) {
+        if (res.value.version === undefined || res.value.version == 1)
+          res = await convertTicketToCurrentVersion(res.value.ticketNumber, res.value.ticketOwner, res.value.version);
+        operationStatus = true;
+      }
     } catch (err) {
         console.log(err.stack);
     }
@@ -308,7 +308,7 @@ export  async function addTicketComment  (ticketNumber, userId, description)  {
     return operationStatus;
 }
 
-export  async function getTicketComments (ticketNumber)  {
+export async function getTicketComments (ticketNumber)  {
     let db = client.db(dbName);
     let col = db.collection(ticketCollectionName);
     try {
