@@ -1,5 +1,5 @@
 import * as mongoAPI from '../../api/mongodb/mongoAPISprint3.js'
-import * as postgresAPI from '../../api/sql/sqlAPISprint2.js'
+import * as postgresAPI from '../../api/sql/sqlAPISprint3.js'
 
 var dbAPI = null
 var dbConnSetup = null
