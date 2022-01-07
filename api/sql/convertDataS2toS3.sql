@@ -53,6 +53,13 @@ CREATE INDEX "ticketNumber_idx"
 -- ORDER BY levenshtein_less_equal('hel', u.unnest, 2) ASC
 -- LIMIT 10;
 
+SELECT *, levenshtein('hel', u.unnest)
+FROM (SELECT t."ticketNumber", t.subject, c.comment, unnest(string_to_array(c.comment, ' '::text) || string_to_array(t.subject, ' '::text))
+      FROM ticket t JOIN comments c on t."ticketNumber" = c."ticketNumber") as u
+WHERE levenshtein_less_equal('hel', u.unnest, 2) <= 2
+ORDER BY levenshtein_less_equal('hel', u.unnest, 2) ASC
+LIMIT 10;
+
 
 -- Autocomplete
 -- SELECT * FROM ticket WHERE subject ILIKE 'hel%';
