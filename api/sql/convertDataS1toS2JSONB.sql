@@ -61,7 +61,7 @@ SET "ticketDetails" = jsonb_insert(
 -- 	jsonb_build_object('userId', "ticketDetails"->'ticketOwner', 'date', now(), 'comment', "ticketDetails"->>'description'),
 -- 	false)
 
-
+-- Delete the description field
 UPDATE "ticketJSONB"
 SET "ticketDetails" = "ticketDetails" - 'description'
 
@@ -71,6 +71,6 @@ SET "ticketDetails" = "ticketDetails" - 'description'
 -- ================================================================
 
 
-SELECT "userId"
-FROM "ticketJSONB"
-JOIN "usersJSONB" ON "ticketJSONB"."ticketDetails"->>'ticketOwner' = "usersJSONB"."userDetails"->>'firstName';
+-- SELECT "userId"
+-- FROM "ticketJSONB"
+-- JOIN "usersJSONB" ON "ticketJSONB"."ticketDetails"->>'ticketOwner' = "usersJSONB"."userDetails"->>'firstName';
