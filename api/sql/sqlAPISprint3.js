@@ -92,7 +92,7 @@ export async function getUserId(first, last) {
 	try {
 		const res = await CLIENT.query('SELECT * FROM users WHERE "firstName" = $1 AND "lastName" = $2', values)
 		console.log(res.rows[0])
-		return res.rows[0].userId
+		return res.rows[0] ? res.rows[0].userId : null
 	} catch(err) {
 		console.log(err.stack)
 	}

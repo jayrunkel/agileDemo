@@ -16,21 +16,19 @@
 // - close date
 // - ticket owner (the person who created the ticket)
 //
+// ****************************************************************
 // ================================================================
 // Sprint 2 Description:
+//
 // Allow multiple people to work on tickets. Tickets have an owner plus
 // multiple other users who can work on the ticket
 //
-// Implementation Notes:
-//  1. Need to add user table
-//  2. Need to convert description field into a table with time stamped comments
-//
 // ****************************************************************
 
-//Postgres password is "password"
 import pkg from "pg"
 const { Client } = pkg
 var CLIENT = null
+
 const validTicketStatuses = ["open", "closed", "inProgress"]
 
 /*
@@ -45,7 +43,6 @@ async function test () {
 */
 
 export async function connectToDatabase(connObj) {
-
 	CLIENT = new Client(connObj)
 	await CLIENT.connect()
 	return CLIENT
@@ -55,6 +52,7 @@ export async function disconnectFromDatabase() {
 	await CLIENT.end()
 }
 
+
 // ================================================================
 // USER API
 // ++ createUser
@@ -62,11 +60,14 @@ export async function disconnectFromDatabase() {
 // ================================================================
 
 export async function createUser(first, last, title) {
-	const values = [first, last, title]
-		
+	const json = {
+		firstName: first,
+		lastName: last,
+		title: title
+	}
+	const values = [json]
 	try {
-		const res = await CLIENT.query('INSERT INTO users ("firstName", "lastName", title) VALUES ($1, $2, $3) RETURNING *', values)
-		console.log(res.rows[0])
+		const res = await CLIENT.query('INSERT INTO "usersJSONB" ("userDetails") VALUES ($1) RETURNING *', values)
 		return res.rows[0].userId
 	} catch(err) {
 		console.log(err.stack)
@@ -74,18 +75,15 @@ export async function createUser(first, last, title) {
 }
 
 export async function getUserId(first, last) {
-	const values = [first, last]
 		
 	try {
-		const res = await CLIENT.query('SELECT * FROM users WHERE "firstName" = $1 AND "lastName" = $2', values)
-		console.log(res.rows[0])
+		const res = await CLIENT.query(`SELECT "userId" FROM "usersJSONB" WHERE "userDetails"->>'firstName' = '${first}' AND "userDetails"->>'lastName' = '${last}'`)
+//		console.log(res.rows[0])
 		return res.rows[0] ? res.rows[0].userId : null
 	} catch(err) {
 		console.log(err.stack)
 	}
 }
-
-
 
 // ================================================================
 // TICKET API
@@ -97,47 +95,27 @@ export async function getUserId(first, last) {
 // ================================================================
 
 export async function createTicket(owner, subject, description) {
-
-	const executeTransaction = async function () {
-		try {
-			await CLIENT.query('BEGIN')
-/*
-			const [res1, res2] = await Promise.all([
-				client.query('INSERT INTO ticket ("ticketOwnerId", subject) VALUES ($1, $2) RETURNING "ticketNumber"', values1),
-				client.query('INSERT INTO comments ("ticketNumber", "userId", comment, "timeStamp") VALUES ($1, $2, $3, Cast(now() as timestamp without time zone)) RETURNING "commentNumber"', values2)
-			])
-*/
-			const values1 = [owner, subject]
-			const res1 = await CLIENT.query('INSERT INTO ticket ("ticketOwnerId", subject) VALUES ($1, $2) RETURNING "ticketNumber"', values1)
-			const ticketNumber = res1.rows[0].ticketNumber
-
-			const values2 = [ticketNumber, owner, description]
-			const res2 = await CLIENT.query('INSERT INTO comments ("ticketNumber", "userId", comment, "timeStamp") VALUES ($1, $2, $3, Cast(now() as timestamp without time zone)) RETURNING "commentNumber"', values2)
-			await CLIENT.query('COMMIT')
-			return ticketNumber
-		} catch (err) {
-			await CLIENT.query('ROLLBACK')
-			throw err
-		}
-	}
-
-	let ticketNumber = -1
-	
 	try {
-		ticketNumber = await executeTransaction()
-	} catch (e) {
-		console.log(e.stack)
+		const json = [{
+			ticketOwner : owner,
+			subject: subject,
+			description: description,
+			status: "open",
+			openDate: new Date()
+		}]
+		const res = await CLIENT.query('INSERT INTO "ticketJSONB" ("ticketDetails") VALUES ( $1 ) RETURNING *', json)
+		return res.rows[0].ticketNumber
+	} catch (err) {
+		console.log(err.stack)
 	}
-
-	return ticketNumber
 }
 
 export async function getTicket(ticketNumber) {
 	try {
 		const values = [ticketNumber]
-		const res = await CLIENT.query('SELECT * FROM ticket WHERE "ticketNumber" = $1', values)
-		console.log(res.rows[0])
-		return res.rows[0]
+		const res = await CLIENT.query('SELECT * FROM "ticketJSONB" WHERE "ticketNumber" = $1', values)
+//		console.log(res.rows[0])
+		return res.rows[0] ? res.rows[0] : null
 	}
 	catch (err) {
 		console.log(err.stack)
@@ -149,12 +127,17 @@ export async function changeTicketStatus(ticketNumber, newStatus) {
 	
 	if (validTicketStatuses.includes(newStatus)) {
 		try {
-			const values = [ticketNumber, newStatus]
-			const res = (newStatus == "closed") ?
-						await CLIENT.query('UPDATE ticket SET "status" = $2, "closeDate" = now() WHERE "ticketNumber" = $1 RETURNING *', values) :
-						await CLIENT.query('UPDATE ticket SET "status" = $2 WHERE "ticketNumber" = $1 RETURNING *', values) 
-			console.log(res.rows[0])
-			if (res.rows.length == 1) operationStatus = true
+			const resArray = await Promise.all([
+				CLIENT.query(`UPDATE "ticketJSONB" SET "ticketDetails" = jsonb_set("ticketDetails", '{status}', to_jsonb('${newStatus}'::text), TRUE) WHERE "ticketNumber" = ${ticketNumber} RETURNING *`),
+				// REQUIRES TO UPDATE Statements instead of 1 in MongoDB
+				async function () {
+					if (newStatus == "closed")
+					CLIENT.query(`UPDATE "ticketJSONB" SET "ticketDetails" = jsonb_set("ticketDetails", '{closeDate}', to_jsonb(now()), TRUE) WHERE "ticketNumber" = ${ticketNumber} RETURNING *`)
+				}()
+			])
+
+//			console.log(resArray[0].rows[0])
+			if (resArray[0].rows.length == 1) operationStatus = true
 		} catch (err) {
 			console.log(err.stack)
 		}
@@ -165,13 +148,19 @@ export async function changeTicketStatus(ticketNumber, newStatus) {
 	return operationStatus
 }
 
-export async function addTicketComment(ticketNumber, userId, description) {
+export async function addTicketComment(ticketNumber, userid, description) {
 	let operationStatus = false
-	
+	let newCommentObj = {
+		userId : userid,
+		date: new Date(),
+		comment: description
+	}
+//	console.log("Stringified Object: ", JSON.stringify(newCommentObj))
+	const values = [newCommentObj]
 	try {
-		const values = [ticketNumber, userId, description]
-		const res = await CLIENT.query('INSERT INTO comments ("ticketNumber", "userId", comment, "timeStamp") VALUES ($1, $2, $3, Cast(now() as timestamp without time zone)) RETURNING "commentNumber"', values)
-		operationStatus = true
+		const res = await CLIENT.query(`UPDATE "ticketJSONB" SET "ticketDetails" = jsonb_insert("ticketDetails", '{comments, 99999}', to_jsonb('${JSON.stringify(newCommentObj)}'::jsonb), true ) WHERE "ticketNumber" = ${ticketNumber} RETURNING *`)
+		operationStatus = res.rowCount > 0
+//		console.log(res)
 	} catch (err) {
 		console.log(err.stack)
 	}
@@ -180,42 +169,43 @@ export async function addTicketComment(ticketNumber, userId, description) {
 }
 
 export async function getTicketComments(ticketNumber) {
-	const res = await CLIENT.query('SELECT "userId", "timeStamp" as date, comment FROM comments WHERE "ticketNumber" = $1', [ticketNumber])
-	return  (res.rows.length > 0) ? res.rows : null
+	//const res = await CLIENT.query('SELECT "userId", "timeStamp" as date, comment FROM comments WHERE "ticketNumber" = $1', [ticketNumber])
+  const res = await CLIENT.query(`select "ticketDetails"->'comments' as comments FROM "ticketJSONB" WHERE "ticketNumber" = ${ticketNumber}`)
+	//	console.log("The comments are: ", res)
+	return  (res.rows.length > 0) ? res.rows[0].comments : null
 }
 
 /*
 async function test () {
 	let connection = await connectToDatabase()
+	
 	let newUserTom = await createUser("Tom", "Jones", "Boss")
 	console.log("Bosses user id: ", newUserTom)
 	let newUserTomId = await getUserId("Tom", "Jones")
 	console.log("Validating Boss is in the database. User Id: ", newUserTomId)
 
-	let ticketNum = await createTicket(newUserTomId, "Help?", "Doesn't work")
+	let ticketNum = await createTicket("Jay", "Help?", "Doesn't work")
 	console.log("New Ticket Number: ", ticketNum)
 	console.log("New Ticket", await getTicket(ticketNum))
 
-		
 	await changeTicketStatus(ticketNum, "closed")
 	console.log("Closed Ticket", await getTicket(ticketNum))
 
 	await changeTicketStatus(ticketNum, "working on it")
-
-	let jayId = await getUserId("Jay", "Runkel")
-
-	await addTicketComment(ticketNum, jayId, "Made a change to the ticket")
+	
+	await addTicketComment(ticketNum, "Made a change to the ticket")
 	console.log("Updated Ticket Description:", await getTicket(ticketNum))
 
-	await addTicketComment(9934393, jayId, "This ticket does not exist")
-	
-  let comments = await getTicketComments(ticketNum)
-	console.log("Ticket comments: ", comments)
+	await addTicketComment(ticketNum, "Made another change to the ticket")
+	console.log("Updated Ticket Description:", await getTicket(ticketNum))
 
-	console.log("The comments for a non-existant ticket are ", await getTicketComments(9934393))
-	
+	await addTicketComment(ticketNum, "Made another change to the ticket")
+	console.log("Updated Ticket Description:", await getTicket(ticketNum))
+
+	await addTicketComment(9934393, "This ticket does not exist")
+
 	await disconnectFromDatabase()
 }
-
-test()
 */
+
+//test()

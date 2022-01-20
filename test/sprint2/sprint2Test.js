@@ -1,5 +1,6 @@
 import * as mongoAPI from '../../api/mongodb/mongoAPISprint2.js'
 import * as postgresAPI from '../../api/sql/sqlAPISprint2.js'
+import * as psqlJSONAPI from '../../api/sql/sqlJsonAPISprint2.js'
 
 var dbAPI = null
 var dbConnSetup = null
@@ -22,6 +23,11 @@ function setDBAPI() {
 		dbAPI = postgresAPI
 		dbConnSetup = postgresConnObj
 		break
+	case "SQL_JSONB" :
+		dbAPI = psqlJSONAPI
+		dbConnSetup = postgresConnObj
+		break
+		
 	default:
 		console.log("ERROR - Unknown database API")
 	}
@@ -48,6 +54,9 @@ async function test () {
 
 	let result = await dbAPI.addTicketComment(4, newUserTom, "Made a change to the ticket")
 	console.log("Updated Ticket Description [Success was ", result, "]:", await dbAPI.getTicket(4))
+
+	result = await dbAPI.addTicketComment(4, newUserTom, "Made another change to the ticket")
+	console.log("Updated Ticket Description (second time) [Success was ", result, "]:", await dbAPI.getTicket(4))
 
 	result = await dbAPI.addTicketComment(9934393, newUserTom, "This ticket does not exist")
 	console.log("Updated Ticket Description for Non Existing Ticket [Success was ", result, "]")
