@@ -1,5 +1,6 @@
 import * as mongoAPI from '../../api/mongodb/mongoAPISprint3.js'
 import * as postgresAPI from '../../api/sql/sqlAPISprint3.js'
+import * as psqlJSONAPI from '../../api/sql/sqlJsonAPISprint3.js'
 
 var dbAPI = null
 var dbConnSetup = null
@@ -22,6 +23,10 @@ function setDBAPI() {
 		dbAPI = postgresAPI
 		dbConnSetup = postgresConnObj
 		break
+  case "SQL_JSONB" :
+		dbAPI = psqlJSONAPI
+		dbConnSetup = postgresConnObj
+		break	
 	default:
 		console.log("ERROR - Unknown database API")
 	}

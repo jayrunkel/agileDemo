@@ -225,6 +225,24 @@ export async function getSearchCompletions(phrase, numCompletions) {
 // - Doesn't do any type of ranking or sorting based upon word frequency or whether the word exists in the subject or comment field
 // (it probably is possible to modify this SQL query so the results are sorted so that results with the same levenshtein distance are
 //  are ordered so that subject result listed before comment)
+//
+//
+// ================
+//
+// This version provides ranking, but not fuzzy matching. It requires a materialized view:
+// 
+// CREATE MATERIALIZED VIEW "searchView" AS
+//     SELECT t."ticketNumber", t.subject, c.comment
+// 		FROM ticket t JOIN comments c on t."ticketNumber" = c."ticketNumber";
+
+// CREATE INDEX ON "searchView" USING GIN(
+//    to_tsvector('english', subject || ' ' || comment));
+
+// SELECT "ticketNumber", subject, comment, ts_rank(to_tsvector('english', subject || ' ' || comment), to_tsquery('computer')) as rank
+// FROM "searchView"
+// ORDER BY rank DESC
+// LIMIT 10;
+
 
 export async function search(phrase, fuzzyDistance, numResults) {
 	let res = null
