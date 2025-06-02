@@ -2,6 +2,8 @@
 
 -- DROP TABLE IF EXISTS public.ticket;
 
+CREATE DATABASE public;
+
 CREATE TABLE IF NOT EXISTS public.ticket
 (
     subject text COLLATE pg_catalog."default",
